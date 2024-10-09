@@ -10,10 +10,11 @@
 ;; This mode provides syntax highlighting, code navigation, and other
 ;; features for editing zAsar 65816 assembly code in Emacs.
 
+(load-file "/Users/scawful/Code/lisp/zAsar-mode/zAsar-parser.el")
 ;;; Code:
 
+(require 'zAsar-parser)
 (require 'easymenu)
-
 
 ;; Customizable variables
 (defgroup zAsar nil
@@ -125,42 +126,6 @@
       ;; Comments
       (";.*$" . font-lock-comment-face)))
   "Keyword highlighting specification for `zAsar-mode'.")
-
-;; Variables to hold parsed labels
-(defvar zAsar-labels nil
-  "List of labels parsed from the disassembly files.")
-
-(defvar zAsar-project-labels nil
-  "List of labels parsed from the current project.")
-
-;; Parsing functions
-(defun zAsar-parse-disassembly ()
-  "Parse the disassembly files in `zAsar-disassembly-directory'."
-  (interactive)
-  (setq zAsar-labels nil)
-  (let ((disassembly-directory zAsar-disassembly-directory))
-    (when (file-directory-p disassembly-directory)
-      (dolist (file (directory-files disassembly-directory t "bank_[0-9A-F][0-9A-F]\\.asm"))
-        (with-temp-buffer
-          (insert-file-contents file)
-          (goto-char (point-min))
-          (while (re-search-forward "^\$begin:math:text$[A-Za-z_][A-Za-z0-9_]*\\$end:math:text$:" nil t)
-            (add-to-list 'zAsar-labels
-                         (cons (match-string 1) (cons file (match-beginning 0))))))))))
-
-(defun zAsar-parse-current-project ()
-  "Parse the current project for labels."
-  (interactive)
-  (setq zAsar-project-labels nil)
-  (let ((project-directory (locate-dominating-file default-directory ".git")))
-    (when project-directory
-      (dolist (file (directory-files-recursively project-directory "\\.asm\\'"))
-        (with-temp-buffer
-          (insert-file-contents file)
-          (goto-char (point-min))
-          (while (re-search-forward "^\$begin:math:text$[A-Za-z_][A-Za-z0-9_]*\\$end:math:text$\\s-*\$begin:math:text$:\\\\|=\\$end:math:text$" nil t)
-            (add-to-list 'zAsar-project-labels
-                         (cons (match-string 1) (cons file (match-beginning 0))))))))))
 
 (defun zAsar-list-references ()
   "List all the references in the disassembly."
