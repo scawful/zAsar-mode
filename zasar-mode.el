@@ -10,10 +10,20 @@
 ;; This mode provides syntax highlighting, code navigation, and other
 ;; features for editing zAsar 65816 assembly code in Emacs.
 
+(load-file "/Users/scawful/Code/lisp/zAsar-mode/zAsar-utils.el")
 (load-file "/Users/scawful/Code/lisp/zAsar-mode/zAsar-parser.el")
-;;; Code:
+(load-file "/Users/scawful/Code/lisp/zAsar-mode/zAsar-memory-map.el")
+(load-file "/Users/scawful/Code/lisp/zAsar-mode/zAsar-symbols.el")
+(load-file "/Users/scawful/Code/lisp/zAsar-mode/zAsar-navigation.el")
+(load-file "/Users/scawful/Code/lisp/zAsar-mode/zAsar-keybindings.el")
 
+;;; Code:
+(require 'zAsar-utils)
 (require 'zAsar-parser)
+(require 'zAsar-memory-map)
+(require 'zAsar-navigation)
+(require 'zAsar-keybindings)
+(require 'zAsar-symbols)
 (require 'easymenu)
 
 ;; Customizable variables
@@ -26,26 +36,6 @@
   "Directory containing disassembly files."
   :type 'directory
   :group 'zAsar)
-
-;; Keymap
-(defvar zAsar-mode-map
-  (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "<f12>") #'zAsar-jump-to-reference-at-point)
-    map)
-  "Keymap for `zAsar-mode'.")
-
-;; Menu
-(easy-menu-define zAsar-mode-menu zAsar-mode-map
-  "Menu for `zAsar-mode'."
-  '("zAsar"
-    ["Jump to Reference" zAsar-jump-to-reference-at-point
-     :help "Jump to reference in disassembly or project."]
-    ["Parse Disassembly" zAsar-parse-disassembly
-     :help "Parse labels from the disassembly directory."]
-    ["Parse Current Project" zAsar-parse-current-project
-     :help "Parse labels from the current project."]
-    ["List References" zAsar-list-references
-     :help "List all parsed references."]))
 
 ;; Imenu
 (defvar zAsar-imenu-generic-expression
@@ -127,32 +117,6 @@
       (";.*$" . font-lock-comment-face)))
   "Keyword highlighting specification for `zAsar-mode'.")
 
-(defun zAsar-list-references ()
-  "List all the references in the disassembly."
-  (interactive)
-  (if zAsar-labels
-      (with-output-to-temp-buffer "*zAsar References*"
-        (dolist (label zAsar-labels)
-          (princ (format "%s\n" (car label)))))
-    (message "No labels found. Did you run `zAsar-parse-disassembly`?")))
-
-;; Jump functions
-(defun zAsar-jump-to-reference-at-point ()
-  "Jump to the definition of the label under point."
-  (interactive)
-  (let* ((label (thing-at-point 'symbol t))
-         (file-pos (or (assoc-default label zAsar-labels)
-                       (assoc-default label zAsar-project-labels)))
-         (file (car file-pos))
-         (position (cdr file-pos)))
-    (if file
-        (progn
-          (find-file file)
-          (goto-char position))
-      (message "Label '%s' not found in disassembly or project." label))))
-
-;; ========================================================
-
 
 ;; Define the mode
 ;;;###autoload
@@ -164,8 +128,13 @@
   (setq-local comment-start ";")
   (setq-local comment-end "")
   (setq-local imenu-generic-expression zAsar-imenu-generic-expression)
-  ;; Optionally parse the disassembly when the mode is loaded
-  (zAsar-parse-disassembly))
+  (zAsar-parser-initialize)
+  (zAsar-symbols-initialize)  
+  (zAsar-keybindings-initialize)
+  ; Hook to parse the current project if there are no labels
+  (unless zAsar-project-labels
+    (add-hook 'after-save-hook #'zAsar-parse-current-project nil t))
+)
 
 ;; Auto-mode association
 ;;;###autoload
