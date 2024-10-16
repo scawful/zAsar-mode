@@ -10,19 +10,19 @@
 
 (defun zAsar-push-label (label-name address file type)
   "Push a label to the label list."
-  (push (list 
-          :name label-name 
-          :address address 
-          :file file 
+  (push (list
+          :name label-name
+          :address address
+          :file file
           :position (point)
           :type type) zAsar-labels))
 
 (defun zAsar-push-project-label (label-name address file type)
   "Push a label to the project label list."
-  (push (list 
-          :name label-name 
-          :address address 
-          :file file 
+  (push (list
+          :name label-name
+          :address address
+          :file file
           :position (point)
           :project t
           :type type) zAsar-project-labels))
@@ -82,20 +82,26 @@
         (dolist (label zAsar-labels)
           (let ((name (plist-get label :name))
                 (address (plist-get label :address))
-                (bank (plist-get label :bank))
                 (file (plist-get label :file))
                 (type (plist-get label :type)))
-            (princ (format "%s, Address: %s, Bank: %s, Type: %s\n"
+            (princ (format "%s, Address: %s, Type: %s\n"
                            name
                            (if address (format "$%04X" address) "N/A")
-                           (if bank (format "%02X" bank) "N/A")
                            type)))))
     (message "No labels found. Did you run `zAsar-parse-disassembly`?")))
 
+(defvar zAsar-disassembly-parsed nil
+  "Flag to indicate if the disassembly has been parsed.")
+
 (defun zAsar-parser-initialize ()
   "Initialize the parser by parsing disassembly and project files."
-  (zAsar-parse-disassembly)
-  (zAsar-parse-current-project))
+  (unless zAsar-disassembly-parsed
+    (zAsar-parse-disassembly)
+    (setq zAsar-disassembly-parsed t))
+  (unless (or (string-match-p "usdasm" (projectile-project-name))
+              (string-match-p "jpdasm" (projectile-project-name)))
+    (zAsar-parse-current-project))
+  )
 
 (provide 'zAsar-parser)
 
