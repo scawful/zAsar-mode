@@ -5,33 +5,31 @@
 
 (defvar zAsar-memory-map-data nil "Data for memory map visualization.")
 
+;; zAsar Memory Map Mode 
+(define-derived-mode zAsar-memory-map-mode special-mode "zAsar Memory Map"
+  "Major mode for displaying the memory map of a ROM."
+  (setq buffer-read-only t))
+
 (defun zAsar-generate-memory-map ()
   "Generate the memory map data based on parsed labels."
   (interactive)
   (setq zAsar-memory-map-data nil)
   (dolist (label zAsar-labels)
-    (let ((address (zAsar-label-address label)))
-      (push (list :name (plist-get label :name)
-                  :address address
-                  :file (plist-get label :file)
-                  :type (plist-get label :type))
-            zAsar-memory-map-data)))
-  ;; Similarly, process project labels
+      (push (list :name    (plist-get label :name)
+                  :address (plist-get label :address)
+                  :position   (plist-get label :position)
+                  :file    (plist-get label :file)
+                  :type    (plist-get label :type))
+            zAsar-memory-map-data))
   (dolist (label zAsar-project-labels)
-    (let ((address (zAsar-label-address label)))
-      (push (list :name (plist-get label :name)
-                  :address address
-                  :file (plist-get label :file)
-                  :type (plist-get label :type))
-            zAsar-memory-map-data))))
-
-(defun zAsar-label-address (label)
-  "Extract the address from LABEL.
-Assumes label is a list with :address key."
-  (plist-get label :address))
-
+      (push (list :name    (plist-get label :name)
+                  :address (plist-get label :address)
+                  :position   (plist-get label :position)
+                  :file    (plist-get label :file)
+                  :type    (plist-get label :type))
+            zAsar-memory-map-data)))
 (defun zAsar-display-memory-map ()
-  "Display the ROM memory map in a separate buffer."
+  "Display the ROM memory map in a separate buffer with a fixed header."
   (interactive)
   (zAsar-generate-memory-map)
   (let ((buffer (get-buffer-create "*zAsar Memory Map*")))
@@ -39,30 +37,36 @@ Assumes label is a list with :address key."
       (read-only-mode -1)
       (erase-buffer)
       ;; Insert Header
-      (insert (propertize (format "%-40s %-10s %-20s %s\n"
-                                  "Label" "Address" "File" "Type")
+      (insert (propertize (format "%-7s %-40s %-20s %s\n"
+                                  "Address" "Label" "File" "Type")
                           'face 'font-lock-keyword-face))
       (insert (make-string 80 ?-))
       (insert "\n")
       ;; Insert Entries
       (dolist (entry (sort zAsar-memory-map-data
-                           (lambda (a b)
-                             (< (plist-get a :address)
+                            (lambda (a b)
+                              (< (plist-get a :address)
                                 (plist-get b :address)))))
         (let ((face (cond
-                     ((eq (plist-get entry :type) 'main) 'font-lock-function-name-face)
-                     ((eq (plist-get entry :type) 'sublabel) 'font-lock-variable-name-face)
-                     (t 'font-lock-constant-face))))
+                      ((eq (plist-get entry :type) 'main) 'font-lock-function-name-face)
+                      ((eq (plist-get entry :type) 'sublabel) 'font-lock-variable-name-face)
+                      (t 'font-lock-constant-face))))
           (insert (propertize
-                   (format "%-40s 0x%06X %-20s %s\n"
-                           (plist-get entry :name)
-                           (plist-get entry :address)
-                           (file-name-nondirectory (plist-get entry :file))
-                           (symbol-name (plist-get entry :type)))
-                   'face face))))
+                    (format "$%06X %-40s %-20s %s\n"
+                            (plist-get entry :address)
+                            (plist-get entry :name)
+                            (file-name-nondirectory (plist-get entry :file))
+                            (symbol-name (plist-get entry :type)))
+                    'face face))))
       (goto-char (point-min))
-      (read-only-mode 1))
-        (display-buffer buffer)))
+      (read-only-mode 1)
+      ;; Make header fixed
+      (setq header-line-format
+            (propertize (format "%-8s %-40s %-20s %s"
+                                        "Address" "Label" "File" "Type")
+                                'face 'font-lock-keyword-face)
+                    ))
+    (display-buffer buffer)))
 
 (defun zAsar-group-consecutive (numbers)
   "Group a list of NUMBERS into consecutive ranges.
